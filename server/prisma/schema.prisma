@@ -1,0 +1,140 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum AttackCategory {
+  DIRECT_INJECTION
+  INDIRECT_DOCUMENT_INJECTION
+  TASK_HIJACKING
+  SYNTHETIC_DATA_DISCLOSURE
+  INSTRUCTION_HIERARCHY
+  UNAUTHORIZED_TOOL_USE
+  OUTPUT_INTEGRITY
+  EXCESSIVE_AGENCY
+}
+
+enum InputType {
+  PROMPT
+  DOCUMENT
+  MULTI_MODAL
+  TOOL_CALL
+}
+
+enum RunStatus {
+  QUEUED
+  RUNNING
+  COMPLETED     // Execution completed; security verdict in evaluationResult (PASS or FAIL)
+  FAILED        // Security failure / vulnerability confirmed
+  INCONCLUSIVE  // Ambiguous output or indeterminate compliance
+  ERROR         // System/runtime execution error (distinct from security vulnerability)
+  SKIPPED       // Preconditions or dependencies not met
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  reports   Report[]
+
+  @@index([email])
+}
+
+model Agent {
+  id            String    @id @default(uuid())
+  name          String
+  description   String?
+  provider      String    // e.g. "mock", "glm-flash", "openai" (NEVER store API keys here)
+  model         String    // e.g. "mock-target", "glm-5.3-flash"
+  configuration Json      // System prompts, delimiter rules, defense type, tool whitelists
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  testRuns      TestRun[]
+
+  @@index([provider, model])
+}
+
+model TestCase {
+  id                 String         @id @default(uuid())
+  testId             String?        @unique
+  title              String
+  description        String
+  category           AttackCategory
+  severity           Severity       @default(MEDIUM)
+  inputType          InputType      @default(PROMPT)
+  testInput          String         @db.Text
+  originalTask       String?        @db.Text
+  expectedBehavior   String         @db.Text
+  evaluationCriteria Json           // Canaries, forbidden phrases, tool permissions, assertions
+  mitigation         String?        @db.Text
+  version            Int            @default(1)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  testRuns           TestRun[]
+
+  @@index([category])
+  @@index([severity])
+  @@index([testId])
+}
+
+model TestRun {
+  id               String       @id @default(uuid())
+  agentId          String
+  agent            Agent        @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  testCaseId       String
+  testCase         TestCase     @relation(fields: [testCaseId], references: [id], onDelete: Restrict)
+  status           RunStatus    @default(QUEUED)
+  startedAt        DateTime?
+  completedAt      DateTime?
+  actualResponse   String?      @db.Text
+  evaluationResult Json?        // { verdict: "PASS"|"FAIL"|"INCONCLUSIVE"|"ERROR"|"SKIPPED", evidence: {...} }
+  durationMs       Int?
+  errorMessage     String?      @db.Text
+  createdAt        DateTime     @default(now())
+  findings         Finding[]
+
+  @@index([agentId])
+  @@index([testCaseId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Finding {
+  id             String    @id @default(uuid())
+  testRunId      String
+  testRun        TestRun   @relation(fields: [testRunId], references: [id], onDelete: Cascade)
+  title          String
+  description    String    @db.Text
+  severity       Severity
+  evidence       Json      // Structured proof: rawInput, rawCompletion, matchedCanary, toolCallTrace
+  recommendation String    @db.Text
+  createdAt      DateTime  @default(now())
+
+  @@index([testRunId])
+  @@index([severity])
+}
+
+model Report {
+  id        String   @id @default(uuid())
+  title     String
+  summary   String   @db.Text
+  metrics   Json     // Aggregations: totals, passRate, categoryRates, deltaVsBaseline
+  createdAt DateTime @default(now())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([createdAt])
+}

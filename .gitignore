@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Environment and Local Secrets
+.env
+.env.local
+.env.*.local
+*.env
+
+# Build Artifacts
+dist/
+build/
+coverage/
+.vite/
+
+# Database
+prisma/*.db
+prisma/*.db-journal
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# OS & Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

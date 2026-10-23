@@ -1,0 +1,21 @@
+{
+  "name": "trustissues",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TrustIssues - AI Agent Security Testing Lab",
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev:server": "npm --workspace=server run dev",
+    "dev:client": "npm --workspace=client run dev",
+    "dev": "npm --workspace=server run start & npm --workspace=client run dev",
+    "build:client": "npm --workspace=client run build",
+    "build": "npm run build:client",
+    "test:server": "npm --workspace=server run test",
+    "test:model": "npm --workspace=server run test:model",
+    "test": "npm run test:server"
+  },
+  "devDependencies": {}
+}
